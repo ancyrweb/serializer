@@ -1,0 +1,17 @@
+{
+  "name": "rewieer/serializer",
+  "type": "library",
+  "require-dev": {
+    "phpunit/phpunit": "^6.2"
+  },
+  "autoload": {
+    "psr-4": { "Serializer\\": "src/" }
+  },
+  "authors": [
+    {
+      "name": "Benkhebbab Anthony",
+      "email": "rewieer@gmail.com"
+    }
+  ],
+  "require": {}
+}
