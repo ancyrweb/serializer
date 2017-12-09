@@ -1,7 +1,16 @@
 <?php
-namespace Serializer\Serializer;
+/*
+ * (c) Anthony Benkhebbab <rewieer@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 
-class JsonSerializerTest extends \PHPUnit\Framework\TestCase{
+namespace Tests\Serializer\Serializer;
+
+use Serializer\Serializer\JsonSerializer;
+
+class JsonSerializerTest extends \PHPUnit\Framework\TestCase {
 
   /**
    * @var JsonSerializer

@@ -1,5 +1,15 @@
 <?php
-namespace Serializer;
+/*
+ * (c) Anthony Benkhebbab <rewieer@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Serializer;
+
+use Serializer\Serializer;
+use Serializer\SerializerTools;
 
 class Dummy {
   public $foo;
@@ -12,29 +22,59 @@ class Dummy {
 }
 
 class SerializerTest extends \PHPUnit\Framework\TestCase {
-  /**
-   * @var Serializer
-   */
-  public $serializer;
-
-  public function setUp() {
-    $this->serializer = new Serializer();
-  }
-
-  public function testSerialize(){
+  public function testSerialize() {
+    $serializer = new Serializer();
     $obj = new Dummy("a", "b");
-    $output = $this->serializer->serialize($obj, "json");
+    $output = $serializer->serialize($obj, "json");
     $expected = '{"foo":"a","bar":"b"}';
 
     $this->assertEquals($expected, $output);
   }
 
-  public function testDeserialize(){
+  public function testDeserialize() {
+    $serializer = new Serializer();
     $obj = new Dummy();
     $data = '{"foo":"a","bar":"b"}';
-    $out = $this->serializer->deserialize($data, "json", $obj);
+    $out = $serializer->deserialize($data, "json", $obj);
 
     $this->assertTrue($out instanceof Dummy);
     $this->assertEquals("a", $out->foo);
-    $this->assertEquals("b", $out->bar);  }
+    $this->assertEquals("b", $out->bar);
+  }
+
+  public function testSerializeWithMetadata() {
+    $serializer = new Serializer(
+      SerializerTools::createMetadataFromConfig([
+        Dummy::class => [
+          "bar" => [
+            "class" => Dummy::class,
+          ]
+        ]
+      ])
+    );
+
+    $obj = new Dummy("a", new Dummy("b", "c"));
+    $output = $serializer->serialize($obj, "json");
+    $expected = '{"foo":"a","bar":{"foo":"b","bar":"c"}}';
+
+    $this->assertEquals($expected, $output);
+  }
+
+  public function testDeserializeWithMetadata() {
+    $serializer = new Serializer(
+      SerializerTools::createMetadataFromConfig([
+        Dummy::class => [
+          "bar" => [
+            "class" => Dummy::class,
+          ]
+        ]
+      ])
+    );
+
+    $data = '{"foo":"a","bar":{"foo":"b","bar":"c"}}';
+    $output = $serializer->deserialize($data, "json", new Dummy());
+    $expected = new Dummy("a", new Dummy("b", "c"));
+
+    $this->assertEquals($expected, $output);
+  }
 }
