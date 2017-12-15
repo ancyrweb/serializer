@@ -8,6 +8,11 @@
 
 namespace Serializer;
 
+/**
+ * Class ClassMetadataCollection
+ * @package Serializer
+ * Holds a map of "class" => "ClassMetadata".
+ */
 class ClassMetadataCollection {
   private $map = [];
 

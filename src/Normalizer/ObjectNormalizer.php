@@ -9,6 +9,7 @@
 namespace Serializer\Normalizer;
 
 use Serializer\Context;
+use Serializer\SerializerTools;
 
 class ObjectNormalizer implements NormalizerInterface {
   /**
@@ -19,11 +20,48 @@ class ObjectNormalizer implements NormalizerInterface {
   public function normalize($data, Context $context = null) {
     $reflection = new \ReflectionClass($data);
     $out = [];
+    $metadata = null;
 
-    foreach($reflection->getProperties() as $property) {
+    if ($context) {
+      if ($context->getView() !== null) {
+        $metadata = $context->getMetadataCollection()->getOrNull(get_class($data));
+      }
+    }
+
+    foreach ($reflection->getProperties() as $property) {
+      $skip = false;
+      if ($metadata) {
+        if ($context->getView() !== null) {
+          // We get the data corresponding to the current path
+          $viewData = $metadata->getViewOrNull($context->getView());
+          $viewData = SerializerTools::getPortion($viewData, $context->getNavigator()->getPath());
+
+          // If there's any we filter out unwanted stuff
+          if ($viewData) {
+            if (in_array($property->name, $viewData) === false &&
+              array_key_exists($property->name, $viewData) === false) {
+              $skip = true;
+            }
+          }
+        }
+      }
+
+      if ($skip)
+        continue;
+
       $value = $property->getValue($data);
       if (is_object($value)) {
-        $value = $this->normalize($value);
+        $context->getNavigator()->down($property->name);
+        $value = $this->normalize($value, $context);
+        $context->getNavigator()->up();
+      } else if (is_array($value)) {
+        // We don't handle associative arrays so we assume this is a true array of values
+        $value = array_map(function($notNormalizedValue) use ($property, $context) {
+          $context->getNavigator()->down($property->name);
+          $normalizedValue = $this->normalize($notNormalizedValue, $context);
+          $context->getNavigator()->up();
+          return $normalizedValue;
+        }, $value);
       }
 
       $out[$property->getName()] = $value;

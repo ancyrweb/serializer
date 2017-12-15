@@ -23,6 +23,17 @@ class Dummy {
   }
 }
 
+class TestPerson {
+  public $name;
+  public $job;
+  public $friend;
+
+  public function __construct($name, $job, $friend = null) {
+    $this->name = $name;
+    $this->job = $job;
+    $this->friend = $friend;
+  }
+}
 class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   /**
    * @var ObjectNormalizer
@@ -41,7 +52,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
   public function testNormalizingNested(){
     $obj = new Dummy("a", new Dummy("b", "c"));
-    $output = $this->normalizer->normalize($obj);
+    $output = $this->normalizer->normalize($obj, new Context());
     $this->assertEquals(["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]], $output);
   }
 
@@ -122,5 +133,113 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $this->assertTrue(is_int($out->foo));
     $this->assertEquals(2.3, $out->bar);
     $this->assertTrue(is_float($out->bar));
+  }
+
+  public function testNormalizingWithViews() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $dummy = new Dummy("a", "b");
+
+    $metadata
+      ->configureView("view1", [
+        "foo",
+      ]);
+
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(Dummy::class, $metadata);
+    $context->setMetadataCollection($metadataCollection);
+    $context->setView("view1");
+
+    $out = $this->normalizer->normalize($dummy, $context);
+
+    $this->assertEquals(["foo" => "a"], $out);
+  }
+
+  public function testNormalizingNestedWithViews() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $person = new TestPerson(
+      "John Doe",
+      "Developer",
+      new TestPerson(
+        "Jane Doe",
+        "Manager",
+        new TestPerson(
+          "Marshall",
+          "President"
+        )
+      )
+    );
+
+    $metadata
+      ->configureView("view1", [
+        "name",
+        "job",
+        "friend" => [
+          "name",
+          "friend",
+        ]
+      ]);
+
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(TestPerson::class, $metadata);
+    $context->setMetadataCollection($metadataCollection);
+    $context->setView("view1");
+
+    $out = $this->normalizer->normalize($person, $context);
+
+    $this->assertEquals([
+      "name" => "John Doe",
+      "job" => "Developer",
+      "friend" => [
+        "name" => "Jane Doe",
+        "friend" => [
+          "name" => "Marshall",
+          "job" => "President",
+          "friend" => null,
+        ]
+      ]
+    ], $out);
+  }
+  public function testNormalizingNestedArrayWithViews() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $person = new TestPerson(
+      "John Doe",
+      "Developer",
+        [
+          new TestPerson("Jane Doe", "Manager"),
+          new TestPerson("Marshall","President")
+        ]
+    );
+
+    $metadata
+      ->configureView("view1", [
+        "name",
+        "job",
+        "friend" => [
+          "name",
+        ]
+      ]);
+
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(TestPerson::class, $metadata);
+    $context->setMetadataCollection($metadataCollection);
+    $context->setView("view1");
+
+    $out = $this->normalizer->normalize($person, $context);
+
+    $this->assertEquals([
+      "name" => "John Doe",
+      "job" => "Developer",
+      "friend" => [
+        [
+          "name" => "Jane Doe",
+        ],
+        [
+          "name" => "Marshall",
+        ],
+      ]
+    ], $out);
   }
 }

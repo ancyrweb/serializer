@@ -26,6 +26,6 @@ class SerializerToolsTest extends \PHPUnit\Framework\TestCase {
       "bar" => [
         "class" => Dummy::class
       ]
-    ], $collection->getOrNull(Dummy::class)->raw());
+    ], $collection->getOrNull(Dummy::class)->rawProperties());
   }
 }

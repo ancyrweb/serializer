@@ -12,15 +12,17 @@ namespace Serializer;
  * Class Metadata
  * Holds the configuration for an object
  *
- * Metadata allows to customize the normalization and denormalization step. This mecanism is used to give informations
+ * Metadata allows to customize the normalization and denormalization step.
+ * For example, This mecanism is used to give informations
  * to the normalizer that allows it to denormalize a sub-array into an object.
  * @package Serializer
  */
 class ClassMetadata {
   /**
-   * @var array a map whose keys are properties and values are arrays of data
+   * @var array a map "ObjectKey" => "Configuration"
    */
   private $properties = [];
+  private $views = [];
 
   public function __construct() {
 
@@ -51,9 +53,31 @@ class ClassMetadata {
   }
 
   /**
+   * Add the view
+   * @param string $name
+   * @param array $data
+   */
+  public function configureView(string $name, array $data) {
+    $this->views[$name] = $data;
+  }
+
+  /**
+   * Get the property metadata
+   * @param $name
+   * @return array|null
+   */
+  public function getViewOrNull(string $name) {
+    if (array_key_exists($name, $this->views)) {
+      return $this->views[$name];
+    }
+
+    return null;
+  }
+
+  /**
    * @return array the raw properties of the class metadata
    */
-  public function raw() {
+  public function rawProperties() {
     return $this->properties;
   }
 }
