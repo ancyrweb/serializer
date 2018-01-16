@@ -14,11 +14,27 @@ use Rewieer\Serializer\ClassMetadataCollection;
 use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 
 class Dummy {
-  public $foo;
-  public $bar;
+  private $foo;
+  private $bar;
 
   public function __construct($foo = null, $bar = null) {
     $this->foo = $foo;
+    $this->bar = $bar;
+  }
+
+  public function getFoo() {
+    return $this->foo;
+  }
+
+  public function setFoo($foo): void {
+    $this->foo = $foo;
+  }
+
+  public function getBar() {
+    return $this->bar;
+  }
+
+  public function setBar($bar): void {
     $this->bar = $bar;
   }
 }
@@ -61,8 +77,8 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $out = $this->normalizer->denormalize($data, new Dummy());
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->foo);
-    $this->assertEquals("b", $out->bar);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals("b", $out->getBar());
   }
 
   public function testDenormalizingNested() {
@@ -81,8 +97,8 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $out = $this->normalizer->denormalize($data, new Dummy(), $context);
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->foo);
-    $this->assertEquals(new Dummy("b", "c"), $out->bar);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
   }
 
   public function testDenormalizingWithALoader() {
@@ -107,8 +123,8 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $out = $this->normalizer->denormalize($data, $dummy, $context);
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->foo);
-    $this->assertEquals(new Dummy("b", "c"), $out->bar);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
   }
 
   public function testDenormalizingWithTypes() {
@@ -131,10 +147,10 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $out = $this->normalizer->denormalize($data, $dummy, $context);
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals(1, $out->foo);
-    $this->assertTrue(is_int($out->foo));
-    $this->assertEquals(2.3, $out->bar);
-    $this->assertTrue(is_float($out->bar));
+    $this->assertEquals(1, $out->getFoo());
+    $this->assertTrue(is_int($out->getFoo()));
+    $this->assertEquals(2.3, $out->getBar());
+    $this->assertTrue(is_float($out->getBar()));
   }
 
   public function testNormalizingWithViews() {

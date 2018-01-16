@@ -9,9 +9,53 @@
 namespace Rewieer\Serializer\Normalizer;
 
 use Rewieer\Serializer\Context;
+use Rewieer\Serializer\Exception\PrivatePropertyException;
 use Rewieer\Serializer\SerializerTools;
 
 class ObjectNormalizer implements NormalizerInterface {
+  /**
+   * @param \ReflectionClass $class
+   * @param \ReflectionProperty $property
+   * @param $data
+   * @return mixed
+   * @throws PrivatePropertyException
+   */
+  private function getPropertyValueOrThrow(\ReflectionClass $class, \ReflectionProperty $property, $data) {
+    $camelCase = "get" .ucfirst($property->name);
+    if ($class->hasMethod($camelCase)) {
+      return call_user_func([$data, $camelCase]);
+    }
+
+    $snakeCase = "get_" .$property->name;
+    if ($class->hasMethod($snakeCase)) {
+      return call_user_func([$data, $snakeCase]);
+    }
+
+    throw new PrivatePropertyException($property->name);
+  }
+
+  /**
+   * @param \ReflectionClass $class
+   * @param \ReflectionProperty $property
+   * @param $data
+   * @param $value
+   * @return mixed
+   * @throws PrivatePropertyException
+   */
+  private function setPropertyValueOrThrow(\ReflectionClass $class, \ReflectionProperty $property, $data, $value) {
+    $camelCase = "set" .ucfirst($property->name);
+    if ($class->hasMethod($camelCase)) {
+      return call_user_func_array([$data, $camelCase], [$value]);
+    }
+
+    $snakeCase = "set_" .$property->name;
+    if ($class->hasMethod($snakeCase)) {
+      return call_user_func([$data, $snakeCase], [$value]);
+    }
+
+    throw new PrivatePropertyException($property->name, $class->name);
+  }
+
   /**
    * @param $data
    * @param Context $context
@@ -49,7 +93,13 @@ class ObjectNormalizer implements NormalizerInterface {
       if ($skip)
         continue;
 
-      $value = $property->getValue($data);
+      $value = null;
+      if ($property->isPublic() === false) {
+        $value = $this->getPropertyValueOrThrow($reflection, $property, $data);
+      } else {
+        $value = $property->getValue($data);
+      }
+
       if (is_object($value)) {
         $context->getNavigator()->down($property->name);
         $value = $this->normalize($value, $context);
@@ -108,7 +158,11 @@ class ObjectNormalizer implements NormalizerInterface {
         }
       }
 
-      $property->setValue($object, $value);
+      if ($property->isPublic() === false) {
+        $this->setPropertyValueOrThrow($reflection, $property, $object, $value);
+      } else {
+        $property->setValue($object, $value);
+      }
     }
 
     return $object;

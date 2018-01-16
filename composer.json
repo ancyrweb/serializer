@@ -5,7 +5,7 @@
     "phpunit/phpunit": "^6.2"
   },
   "autoload": {
-    "psr-4": { "Rewieer\\Serializer\\": "src/Rewieer/" }
+    "psr-0": { "Rewieer\\Serializer": "src/" }
   },
   "authors": [
     {
