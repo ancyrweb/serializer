@@ -6,8 +6,8 @@
  * file that was distributed with this source code.
  */
 
-namespace Serializer\Normalizer;
-use Serializer\Context;
+namespace Rewieer\Serializer\Normalizer;
+use Rewieer\Serializer\Context;
 
 /**
  * Interface NormalizerInterface

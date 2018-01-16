@@ -6,9 +6,9 @@
  * file that was distributed with this source code.
  */
 
-namespace Tests\Serializer\Serializer;
+namespace Rewieer\Tests\Serializer\Serializer;
 
-use Serializer\Serializer\JsonSerializer;
+use Rewieer\Serializer\Serializer\JsonSerializer;
 
 class JsonSerializerTest extends \PHPUnit\Framework\TestCase {
 

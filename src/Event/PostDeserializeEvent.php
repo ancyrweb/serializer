@@ -6,9 +6,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Rewieer\Serializer\Serializer;
+namespace Rewieer\Serializer\Event;
 
-interface SerializerInterface {
-  public function serialize($data);
-  public function deserialize(string $data);
+/**
+ * Class PostDeserializeEvent
+ * @package Rewieer\Serializer\Event
+ */
+class PostDeserializeEvent extends PreSerializeEvent {
+
 }

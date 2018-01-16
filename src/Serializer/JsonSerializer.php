@@ -6,7 +6,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Serializer\Serializer;
+namespace Rewieer\Serializer\Serializer;
 
 class JsonSerializer implements SerializerInterface {
 

@@ -6,7 +6,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Serializer;
+namespace Rewieer\Serializer;
 
 /**
  * Class SerializerTools
@@ -24,7 +24,7 @@ class SerializerTools {
     foreach ($config as $class => $metadataConfig) {
       $metadata = new ClassMetadata();
       foreach($metadataConfig as $propertyName => $propertyConfig) {
-        $metadata->configureProperty($propertyName, $propertyConfig);
+        $metadata->configureAttribute($propertyName, $propertyConfig);
       }
 
       $collection->add($class, $metadata);
@@ -38,13 +38,13 @@ class SerializerTools {
    * @param array $path looks like ["foo"]["bar"]
    * @return array
    */
-  public static function getPortion($data, array $path) {
+  public static function deepGet($data, array $path) {
     if (count($path) === 0)
       return $data;
 
     $first = array_shift($path);
     if (array_key_exists($first, $data)) {
-      return self::getPortion($data[$first], $path);
+      return self::deepGet($data[$first], $path);
     }
 
     return [];

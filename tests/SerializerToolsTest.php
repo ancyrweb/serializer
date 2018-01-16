@@ -6,10 +6,10 @@
  * file that was distributed with this source code.
  */
 
-namespace Tests\Serializer;
+namespace Rewieer\Tests\Serializer;
 
-use Serializer\ClassMetadataCollection;
-use Serializer\SerializerTools;
+use Rewieer\Serializer\ClassMetadataCollection;
+use Rewieer\Serializer\SerializerTools;
 
 class SerializerToolsTest extends \PHPUnit\Framework\TestCase {
   public function testCreatingCollection() {

@@ -6,10 +6,10 @@
  * file that was distributed with this source code.
  */
 
-namespace Serializer\Normalizer;
+namespace Rewieer\Serializer\Normalizer;
 
-use Serializer\Context;
-use Serializer\SerializerTools;
+use Rewieer\Serializer\Context;
+use Rewieer\Serializer\SerializerTools;
 
 class ObjectNormalizer implements NormalizerInterface {
   /**
@@ -33,8 +33,8 @@ class ObjectNormalizer implements NormalizerInterface {
       if ($metadata) {
         if ($context->getView() !== null) {
           // We get the data corresponding to the current path
-          $viewData = $metadata->getViewOrNull($context->getView());
-          $viewData = SerializerTools::getPortion($viewData, $context->getNavigator()->getPath());
+          $viewData = is_array($context->getView()) ? $context->getView() : $metadata->getViewOrNull($context->getView());
+          $viewData = SerializerTools::deepGet($viewData, $context->getNavigator()->getPath());
 
           // If there's any we filter out unwanted stuff
           if ($viewData) {
@@ -87,7 +87,7 @@ class ObjectNormalizer implements NormalizerInterface {
       if ($context) {
         $metadata = $context->getMetadataCollection()->getOrNull(get_class($object));
         if ($metadata) {
-          $propertyConfiguration = $metadata->getPropertyOrNull($property->getName());
+          $propertyConfiguration = $metadata->getAttributeOrNull($property->getName());
           if ($propertyConfiguration) {
             if (array_key_exists("class", $propertyConfiguration) && is_array($value)) {
               $item = new $propertyConfiguration["class"];

@@ -6,12 +6,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Tests\Serializer\Normalizer;
+namespace Rewieer\Tests\Serializer\Normalizer;
 
-use Serializer\Context;
-use Serializer\ClassMetadata;
-use Serializer\ClassMetadataCollection;
-use Serializer\Normalizer\ObjectNormalizer;
+use Rewieer\Serializer\Context;
+use Rewieer\Serializer\ClassMetadata;
+use Rewieer\Serializer\ClassMetadataCollection;
+use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 
 class Dummy {
   public $foo;
@@ -67,13 +67,15 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
   public function testDenormalizingNested() {
     $metadata = new ClassMetadata();
-    $metadata->configureProperty("bar", [
+    $metadata->configureAttribute("bar", [
       "class" => Dummy::class,
     ]);
 
     $context = new Context();
     $context->setMetadataCollection(new ClassMetadataCollection());
-    $context->getMetadataCollection()->add(Dummy::class, $metadata);
+    $context
+      ->getMetadataCollection()
+      ->add(Dummy::class, $metadata);
 
     $data = ["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]];
     $out = $this->normalizer->denormalize($data, new Dummy(), $context);
@@ -88,7 +90,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $context = new Context();
     $dummy = new Dummy();
 
-    $metadata->configureProperty("bar", [
+    $metadata->configureAttribute("bar", [
       "loader" => function ($value, $object, Context $inContext = null) use ($context, $dummy) {
         $this->assertEquals(["foo" => "b", "bar" => "c"], $value);
         $this->assertEquals($object, $dummy);
@@ -115,10 +117,10 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $dummy = new Dummy();
 
     $metadata
-      ->configureProperty("foo", [
+      ->configureAttribute("foo", [
         "type" => "int",
       ])
-      ->configureProperty("bar", [
+      ->configureAttribute("bar", [
         "type" => "float",
       ]);
 
@@ -147,17 +149,34 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
     $metadataCollection = new ClassMetadataCollection();
     $metadataCollection->add(Dummy::class, $metadata);
-    $context->setMetadataCollection($metadataCollection);
-    $context->setView("view1");
+    $context
+      ->setMetadataCollection($metadataCollection)
+      ->useView("view1");
 
     $out = $this->normalizer->normalize($dummy, $context);
 
     $this->assertEquals(["foo" => "a"], $out);
   }
 
-  public function testNormalizingNestedWithViews() {
+  public function testNormalizingWithProvidedView() {
     $metadata = new ClassMetadata();
     $context = new Context();
+    $dummy = new Dummy("a", "b");
+
+
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(Dummy::class, $metadata);
+    $context
+      ->setMetadataCollection($metadataCollection)
+      ->renderFields([
+        "foo",
+      ]);
+
+    $out = $this->normalizer->normalize($dummy, $context);
+    $this->assertEquals(["foo" => "a"], $out);
+  }
+
+  public function testNormalizingNestedWithViews() {
     $person = new TestPerson(
       "John Doe",
       "Developer",
@@ -171,6 +190,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       )
     );
 
+    $metadata = new ClassMetadata();
     $metadata
       ->configureView("view1", [
         "name",
@@ -183,8 +203,10 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
     $metadataCollection = new ClassMetadataCollection();
     $metadataCollection->add(TestPerson::class, $metadata);
+
+    $context = new Context();
     $context->setMetadataCollection($metadataCollection);
-    $context->setView("view1");
+    $context->useView("view1");
 
     $out = $this->normalizer->normalize($person, $context);
 
@@ -207,10 +229,12 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $person = new TestPerson(
       "John Doe",
       "Developer",
-        [
-          new TestPerson("Jane Doe", "Manager"),
-          new TestPerson("Marshall","President")
-        ]
+      [
+        new TestPerson("Jane Doe", "Manager", [
+          new TestPerson("Anne Mary", "Freelance"),
+        ]),
+        new TestPerson("Marshall","President")
+      ]
     );
 
     $metadata
@@ -224,8 +248,9 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
     $metadataCollection = new ClassMetadataCollection();
     $metadataCollection->add(TestPerson::class, $metadata);
-    $context->setMetadataCollection($metadataCollection);
-    $context->setView("view1");
+    $context
+      ->setMetadataCollection($metadataCollection)
+      ->useView("view1");
 
     $out = $this->normalizer->normalize($person, $context);
 
