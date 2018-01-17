@@ -148,4 +148,25 @@ class Serializer {
   public function setNormalizer($type, NormalizerInterface $normalizer) {
     $this->normalizers[$type] = $normalizer;
   }
+
+  /**
+   * @return null|ClassMetadataCollection
+   */
+  public function getClassMetadataCollection(): ?ClassMetadataCollection {
+    return $this->classMetadataCollection;
+  }
+
+  /**
+   * @return SerializerInterface[]
+   */
+  public function getSerializers(): array {
+    return $this->serializers;
+  }
+
+  /**
+   * @return NormalizerInterface[]
+   */
+  public function getNormalizers(): array {
+    return $this->normalizers;
+  }
 }
