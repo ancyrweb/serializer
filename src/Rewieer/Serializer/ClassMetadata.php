@@ -51,9 +51,11 @@ class ClassMetadata {
    * Add the view
    * @param string $name
    * @param array $data
+   * @return ClassMetadata
    */
   public function configureView(string $name, array $data) {
     $this->views[$name] = $data;
+    return $this;
   }
 
   /**

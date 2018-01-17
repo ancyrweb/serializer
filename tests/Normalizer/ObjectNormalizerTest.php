@@ -16,10 +16,13 @@ use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 class Dummy {
   private $foo;
   private $bar;
+  private $isOk;
+  private $customGetBarCallCount = 0;
 
-  public function __construct($foo = null, $bar = null) {
+  public function __construct($foo = null, $bar = null, $isOk = true) {
     $this->foo = $foo;
     $this->bar = $bar;
+    $this->isOk = $isOk;
   }
 
   public function getFoo() {
@@ -36,6 +39,35 @@ class Dummy {
 
   public function setBar($bar): void {
     $this->bar = $bar;
+  }
+
+  public function customGetBar() {
+    $this->customGetBarCallCount++;
+    return $this->bar;
+  }
+
+  public function customGetBarCallCountX() {
+    return $this->customGetBarCallCount;
+  }
+
+  private function customGetBarPv() {
+    return $this->customGetBarCallCount;
+  }
+
+  /**
+   * @return mixed
+   */
+  public function isOk() {
+    return $this->isOk;
+  }
+
+  /**
+   * @param mixed $isOk
+   * @return Dummy
+   */
+  public function setIsOk($isOk) {
+    $this->isOk = $isOk;
+    return $this;
   }
 }
 
@@ -63,13 +95,22 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   public function testNormalizing(){
     $obj = new Dummy("a", "b");
     $output = $this->normalizer->normalize($obj);
-    $this->assertEquals(["foo" => "a", "bar" => "b"], $output);
+    $this->assertEquals(["foo" => "a", "bar" => "b", "isOk" => true], $output);
   }
 
   public function testNormalizingNested(){
     $obj = new Dummy("a", new Dummy("b", "c"));
     $output = $this->normalizer->normalize($obj, new Context());
-    $this->assertEquals(["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]], $output);
+    $this->assertEquals(["foo" => "a", "bar" => ["foo" => "b", "bar" => "c", "isOk" => true], "isOk" => true], $output);
+  }
+
+  public function testNormalizingWithViewButNoMetaData(){
+    $obj = new Dummy("a", "b");
+    $context = new Context();
+    $context->renderFields(["foo"]);
+
+    $output = $this->normalizer->normalize($obj, $context);
+    $this->assertEquals(["foo" => "a"], $output);
   }
 
   public function testDenormalizing(){
@@ -107,7 +148,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $dummy = new Dummy();
 
     $metadata->configureAttribute("bar", [
-      "loader" => function ($value, $object, Context $inContext = null) use ($context, $dummy) {
+      "denormalizer" => function ($value, $object, Context $inContext = null) use ($context, $dummy) {
         $this->assertEquals(["foo" => "b", "bar" => "c"], $value);
         $this->assertEquals($object, $dummy);
         $this->assertEquals($context, $inContext);
@@ -283,4 +324,65 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       ]
     ], $out);
   }
+
+  public function testNormalizingWithGetter(){
+    $obj = new Dummy("a", "b");
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("bar", [
+      "getter" => "customGetBar",
+    ]);
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(Dummy::class, $metadata);
+
+    $context = new Context();
+    $context->setMetadataCollection($metadataCollection);
+
+    $output = $this->normalizer->normalize($obj, $context);
+    $this->assertEquals(["foo" => "a", "bar" => "b", "isOk" => true], $output);
+    $this->assertEquals(1, $obj->customGetBarCallCountX());
+  }
+
+  public function testNormalizingWithGetterWhenGetterDoesNotExist(){
+    $obj = new Dummy("a", "b");
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("bar", [
+      "getter" => "customGetBarX",
+    ]);
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(Dummy::class, $metadata);
+
+    $context = new Context();
+    $context->setMetadataCollection($metadataCollection);
+
+    $message = null;
+    try {
+      $this->normalizer->normalize($obj, $context);
+    } catch (\Exception $e)  {
+      $message = $e->getMessage();
+    }
+
+    $this->assertEquals("Method customGetBarX for property Rewieer\Tests\Serializer\Normalizer\Dummy:bar doesn't exist or is not public", $message);
+  }
+  public function testNormalizingWithGetterWhenGetterIsNotPublic(){
+    $obj = new Dummy("a", "b");
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("bar", [
+      "getter" => "customGetBarPv",
+    ]);
+    $metadataCollection = new ClassMetadataCollection();
+    $metadataCollection->add(Dummy::class, $metadata);
+
+    $context = new Context();
+    $context->setMetadataCollection($metadataCollection);
+
+    $message = null;
+    try {
+      $this->normalizer->normalize($obj, $context);
+    } catch (\Exception $e)  {
+      $message = $e->getMessage();
+    }
+
+    $this->assertEquals("Method customGetBarPv for property Rewieer\Tests\Serializer\Normalizer\Dummy:bar doesn't exist or is not public", $message);
+  }
+
 }
