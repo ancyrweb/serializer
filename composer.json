@@ -7,6 +7,9 @@
   "autoload": {
     "psr-0": { "Rewieer\\Serializer": "src/" }
   },
+  "autoload-dev": {
+    "psr-4": { "Rewieer\\Tests\\": "tests/" }
+  },
   "authors": [
     {
       "name": "Benkhebbab Anthony",

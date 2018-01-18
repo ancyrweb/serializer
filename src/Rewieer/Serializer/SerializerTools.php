@@ -47,6 +47,6 @@ class SerializerTools {
       return self::deepGet($data[$first], $path);
     }
 
-    return [];
+    return null;
   }
 }

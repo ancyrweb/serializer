@@ -62,35 +62,45 @@ class ObjectNormalizer implements NormalizerInterface {
       $metadata = $context->getMetadataCollection()->getOrNull(get_class($data));
     }
 
-    foreach ($accessor->getProperties() as $property) {
-      if ($context && $context->getView() !== null) {
+    $properties = null;
 
-        // We get the data corresponding to the current path
-        if ($metadata !== null && is_array($context->getView()) === false) {
-          $viewData = $metadata->getViewOrNull($context->getView());
-        } else {
-          $viewData = $context->getView();
-        }
+    // By default we try to get data out of the view
+    if ($context && $context->getView() !== null) {
+      // We get the data corresponding to the current path
+      if ($metadata !== null && is_array($context->getView()) === false) {
+        $viewData = $metadata->getViewOrNull($context->getView());
+      } else {
+        $viewData = $context->getView();
+      }
 
-        $viewData = SerializerTools::deepGet($viewData, $context->getNavigator()->getPath());
-
-        // If there's any we filter out unwanted stuff
-        if ($viewData) {
-          if (in_array($property->name, $viewData) === false && array_key_exists($property->name, $viewData) === false) {
-            continue;
+      $properties = SerializerTools::deepGet($viewData, $context->getNavigator()->getPath());
+      if ($properties !== null) {
+        foreach ($properties as $k => $v) {
+          if (is_numeric($k) === false) {
+            unset($properties[$k]);
+            $properties[] = $k;
           }
         }
       }
+    }
 
+    // If there's no view data we instead rely on local properties
+    if ($properties === null) {
+      $properties = array_map(function(\ReflectionProperty $property) {
+        return $property->name;
+      }, $accessor->getProperties());
+    }
+
+    foreach ($properties as $property) {
       $value = null;
       $valueHasBeenSet = false; // custom getter can return null, in which case we don't want to lookup for accessors
 
       if ($metadata) {
-        $propertyConfiguration = $metadata->getAttributeOrNull($property->getName());
+        $propertyConfiguration = $metadata->getAttributeOrNull($property);
         if ($propertyConfiguration && array_key_exists("getter", $propertyConfiguration)) {
           $getter = $propertyConfiguration["getter"];
           if ($accessor->hasMethod($getter) === false || $accessor->isPublic($getter) === false) {
-            throw new MethodException($propertyConfiguration["getter"], $accessor->getClassName(), $property->name);
+            throw new MethodException($propertyConfiguration["getter"], $accessor->getClassName(), $property);
           }
 
           $valueHasBeenSet = true;
@@ -100,7 +110,7 @@ class ObjectNormalizer implements NormalizerInterface {
 
       if ($valueHasBeenSet === false) {
         try {
-          $value = $accessor->get($property->name, $data);
+          $value = $accessor->get($property, $data);
         } catch (PrivatePropertyException $e) {
           // If we don't find any accessor we consider the user doesn't want it to be normalized
           continue;
@@ -109,7 +119,7 @@ class ObjectNormalizer implements NormalizerInterface {
 
       if (is_object($value)) {
         if ($context)
-          $context->getNavigator()->down($property->name);
+          $context->getNavigator()->down($property);
 
         $value = $this->normalizeValue($value, $context);
 
@@ -119,7 +129,7 @@ class ObjectNormalizer implements NormalizerInterface {
         // We don't handle associative arrays so we assume this is a genuine array
         $value = array_map(function($notNormalizedValue) use ($property, $context) {
           if ($context)
-            $context->getNavigator()->down($property->name);
+            $context->getNavigator()->down($property);
 
           $normalizedValue = $this->normalizeValue($notNormalizedValue, $context);
 
@@ -130,7 +140,7 @@ class ObjectNormalizer implements NormalizerInterface {
         }, $value);
       }
 
-      $out[$property->getName()] = $value;
+      $out[$property] = $value;
     }
 
     return $out;

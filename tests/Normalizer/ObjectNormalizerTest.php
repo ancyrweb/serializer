@@ -14,6 +14,7 @@ use Rewieer\Serializer\ClassMetadataCollection;
 use Rewieer\Serializer\Normalizer\DatetimeNormalizer;
 use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 use Rewieer\Serializer\Serializer;
+use Rewieer\Tests\Mock\FooProxy;
 
 class Dummy {
   private $foo;
@@ -130,6 +131,14 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $this->assertEquals(["foo" => "a", "bar" => "1995-11-29T00:00:00+01:00", "isOk" => true], $output);
   }
 
+  public function testNormalizingProxy(){
+    $obj = new FooProxy(10);
+    $context = new Context();
+    $context->renderFields(["var"]);
+
+    $output = $this->normalizer->normalize($obj, $context);
+    $this->assertEquals(["var" => 10], $output);
+  }
 
   public function testDenormalizing(){
     $data = ["foo" => "a", "bar" => "b"];

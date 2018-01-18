@@ -8,37 +8,9 @@
 
 namespace Rewieer\Tests\Serializer;
 
-use Rewieer\Serializer\ClassMetadataCollection;
 use Rewieer\Serializer\PropertyAccessor;
-use Rewieer\Serializer\SerializerTools;
-
-class Foo {
-  private $var;
-
-  public function __construct($var) {
-    $this->var = $var;
-  }
-
-  /**
-   * @return mixed
-   */
-  public function getVar() {
-    return $this->var;
-  }
-
-  /**
-   * @param mixed $var
-   * @return Foo
-   */
-  public function setVar($var) {
-    $this->var = $var;
-    return $this;
-  }
-}
-
-class Proxy extends Foo {
-
-}
+use Rewieer\Tests\Mock\Foo;
+use Rewieer\Tests\Mock\FooProxy;
 
 class PropertyAccessorTest extends \PHPUnit\Framework\TestCase {
   public function testGettingValue() {
@@ -48,7 +20,7 @@ class PropertyAccessorTest extends \PHPUnit\Framework\TestCase {
   }
 
   public function testGettingValueOfProxy() {
-    $obj = new Proxy(5);
+    $obj = new FooProxy(5);
     $accessor = new PropertyAccessor($obj);
     $this->assertEquals(5, $accessor->get("var", $obj));
   }
@@ -61,7 +33,7 @@ class PropertyAccessorTest extends \PHPUnit\Framework\TestCase {
   }
 
   public function testSettingValueOfProxy() {
-    $obj = new Proxy(5);
+    $obj = new FooProxy(5);
     $accessor = new PropertyAccessor($obj);
     $accessor->set("var", $obj, 10);
     $this->assertEquals(10, $obj->getVar());
