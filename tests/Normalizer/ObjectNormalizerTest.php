@@ -84,6 +84,7 @@ class TestPerson {
     $this->friend = $friend;
   }
 }
+
 class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   /**
    * @var Serializer
@@ -125,7 +126,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $this->serializer->setNormalizer(\DateTime::class, new DatetimeNormalizer());
 
     $obj = new Dummy("a", new \Datetime("29-11-1995"));
-    $output = $this->normalizer->normalize($obj);
+    $output = $this->normalizer->normalize($obj, new Context());
     $this->assertEquals(["foo" => "a", "bar" => "1995-11-29T00:00:00+01:00", "isOk" => true], $output);
   }
 

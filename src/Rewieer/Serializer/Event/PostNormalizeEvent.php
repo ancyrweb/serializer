@@ -14,18 +14,22 @@ use Rewieer\Serializer\Context;
  * Class PreSerializeEvent
  * @package Rewieer\Serializer\Event
  */
-class PreSerializeEvent {
+class PostNormalizeEvent {
   private $entity;
   private $normalized;
   private $context;
 
-  public function __construct(Context $context, $entity, array &$normalized) {
+  public function __construct(Context $context, $entity, &$normalized) {
     $this->context = $context;
     $this->entity = $entity;
     $this->normalized = $normalized;
   }
 
-  public function getValue($key) {
+  public function getValue($key = null) {
+    if (is_scalar($this->normalized)) {
+      return $this->normalized;
+    }
+
     if (array_key_exists($key, $this->normalized)) {
       return $this->normalized[$key];
     }
@@ -34,6 +38,11 @@ class PreSerializeEvent {
   }
 
   public function setValue($key, $value) {
+    if (is_scalar($this->normalized)) {
+      $this->normalized = $value;
+      return;
+    }
+
     $this->normalized[$key] = $value;
   }
 

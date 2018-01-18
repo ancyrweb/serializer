@@ -10,9 +10,9 @@ namespace Rewieer\Tests\Serializer;
 
 use Rewieer\Serializer\Event\EventSubscriberInterface;
 use Rewieer\Serializer\Event\PostDenormalizeEvent;
-use Rewieer\Serializer\Event\PostDeserializeEvent;
+use Rewieer\Serializer\Event\PreDenormalizeEvent;
 use Rewieer\Serializer\Event\PreNormalizeEvent;
-use Rewieer\Serializer\Event\PreSerializeEvent;
+use Rewieer\Serializer\Event\PostNormalizeEvent;
 use Rewieer\Serializer\Event\SerializerEvents;
 use Rewieer\Serializer\Serializer;
 use Rewieer\Serializer\SerializerTools;
@@ -28,7 +28,7 @@ class Dummy {
 }
 
 class Sub1 implements EventSubscriberInterface {
-  public function preSerialize(PreSerializeEvent $event) {
+  public function preSerialize(PostNormalizeEvent $event) {
     $event->setValue("qux", "c");
   }
 
@@ -36,7 +36,7 @@ class Sub1 implements EventSubscriberInterface {
     $event->getEntity()->bar = "newbar";
   }
 
-  public function postDeserialize(PostDeserializeEvent $event) {
+  public function postDeserialize(PreDenormalizeEvent $event) {
     $event->setValue("foo", "Jon");
   }
 
@@ -47,13 +47,14 @@ class Sub1 implements EventSubscriberInterface {
   public static function getEvents(): array {
     return [
       SerializerEvents::PRE_NORMALIZE => "preNormalize",
-      SerializerEvents::PRE_SERIALIZE => "preSerialize",
+      SerializerEvents::POST_NORMALIZE => "preSerialize",
 
-      SerializerEvents::POST_DESERIALIZE => "postDeserialize",
+      SerializerEvents::PRE_DENORMALIZE => "postDeserialize",
       SerializerEvents::POST_DENORMALIZE => "postDenormalize",
     ];
   }
 }
+
 class SerializerTest extends \PHPUnit\Framework\TestCase {
   public function testSerialize() {
     $serializer = new Serializer();

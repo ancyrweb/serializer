@@ -11,9 +11,9 @@ namespace Rewieer\Serializer\Event;
 class SerializerEvents {
   // Serialization events
   const PRE_NORMALIZE = "preNormalize";
-  const PRE_SERIALIZE = "preSerialize";
+  const POST_NORMALIZE = "postNormalize";
 
   // Deserialization events
-  const POST_DESERIALIZE = "postDeserialize";
+  const PRE_DENORMALIZE = "preDenormalize";
   const POST_DENORMALIZE = "postDenormalize";
 }

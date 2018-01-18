@@ -12,6 +12,6 @@ namespace Rewieer\Serializer\Event;
  * Class PostDeserializeEvent
  * @package Rewieer\Serializer\Event
  */
-class PostDeserializeEvent extends PreSerializeEvent {
+class PreDenormalizeEvent extends PostNormalizeEvent {
 
 }

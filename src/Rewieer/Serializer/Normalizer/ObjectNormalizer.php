@@ -37,12 +37,7 @@ class ObjectNormalizer implements NormalizerInterface {
    * @throws \Exception
    */
   private function normalizeValue($value, Context $context = null) {
-    $normalizer = $this->serializer->getNormalizer($value);
-    if ($normalizer) {
-      return $normalizer->normalize($value, $context);
-    }
-
-    return $this->normalize($value, $context);
+    return $this->serializer->normalize($value, $context);
   }
 
   /**
