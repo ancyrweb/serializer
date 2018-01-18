@@ -79,7 +79,7 @@ class PropertyAccessor {
       return self::recursiveGet($class->getParentClass(), $property, $object);
     }
 
-    throw new PrivatePropertyException($property->name, $class->name);
+    throw new PrivatePropertyException($property, $class->name);
   }
   /**
    * Return the value for this property
@@ -124,7 +124,7 @@ class PropertyAccessor {
       return self::recursiveSet($class->getParentClass(), $property, $object, $value);
     }
 
-    throw new PrivatePropertyException($property->name, $class->name);
+    throw new PrivatePropertyException($property, $class->name);
   }
 
   /**

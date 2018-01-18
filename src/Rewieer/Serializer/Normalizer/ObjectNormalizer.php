@@ -29,29 +29,19 @@ class ObjectNormalizer implements NormalizerInterface {
   }
 
   /**
-   * Normalize the value
    * @param $value
    * @param Context|null $context
    * @return array
-   * @throws PrivatePropertyException
-   * @throws \Exception
    */
   private function normalizeValue($value, Context $context = null) {
-    $normalizer = $this->serializer->getNormalizer($value);
-    if ($normalizer) {
-      return $normalizer->normalize($value, $context);
-    }
-
-    return $this->normalize($value, $context);
+    return $this->serializer->normalize($value, $context);
   }
 
   /**
-   * Normalize the object
    * @param $data
    * @param Context|null $context
    * @return array
-   * @throws \Exception
-   * @throws PrivatePropertyException
+   * @throws MethodException
    */
   public function normalize($data, Context $context = null) {
     $metadata = null;
