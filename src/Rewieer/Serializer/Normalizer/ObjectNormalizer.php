@@ -9,15 +9,48 @@
 namespace Rewieer\Serializer\Normalizer;
 
 use Rewieer\Serializer\Context;
+use Rewieer\Serializer\Exception\MethodException;
 use Rewieer\Serializer\Exception\PrivatePropertyException;
 use Rewieer\Serializer\PropertyAccessor;
+use Rewieer\Serializer\Serializer;
 use Rewieer\Serializer\SerializerTools;
 
 class ObjectNormalizer implements NormalizerInterface {
   /**
+   * We hold a copy of the serializer because the ObjectNormalize supports normalizing
+   * nested objects with user-set normalizers.
+   * We call class-defined normalizers in priority and fallback to object normalizer otherwise
+   * @var Serializer
+   */
+  private $serializer;
+
+  public function __construct(Serializer $serializer) {
+    $this->serializer = $serializer;
+  }
+
+  /**
+   * Normalize the value
+   * @param $value
+   * @param Context|null $context
+   * @return array
+   * @throws PrivatePropertyException
+   * @throws \Exception
+   */
+  private function normalizeValue($value, Context $context = null) {
+    $normalizer = $this->serializer->getNormalizer($value);
+    if ($normalizer) {
+      return $normalizer->normalize($value, $context);
+    }
+
+    return $this->normalize($value, $context);
+  }
+
+  /**
+   * Normalize the object
    * @param $data
    * @param Context|null $context
    * @return array
+   * @throws \Exception
    * @throws PrivatePropertyException
    */
   public function normalize($data, Context $context = null) {
@@ -30,7 +63,6 @@ class ObjectNormalizer implements NormalizerInterface {
     }
 
     foreach ($accessor->getProperties() as $property) {
-      $skip = false;
       if ($context && $context->getView() !== null) {
 
         // We get the data corresponding to the current path
@@ -45,54 +77,55 @@ class ObjectNormalizer implements NormalizerInterface {
         // If there's any we filter out unwanted stuff
         if ($viewData) {
           if (in_array($property->name, $viewData) === false && array_key_exists($property->name, $viewData) === false) {
-            $skip = true;
+            continue;
           }
         }
       }
 
-      if ($skip)
-        continue;
-
       $value = null;
-      $hasFound = false;
+      $valueHasBeenSet = false; // custom getter can return null, in which case we don't want to lookup for accessors
+
       if ($metadata) {
         $propertyConfiguration = $metadata->getAttributeOrNull($property->getName());
         if ($propertyConfiguration && array_key_exists("getter", $propertyConfiguration)) {
           $getter = $propertyConfiguration["getter"];
           if ($accessor->hasMethod($getter) === false || $accessor->isPublic($getter) === false) {
-            throw new \Exception(
-              sprintf(
-                "Method %s for property %s:%s doesn't exist or is not public",
-                $propertyConfiguration["getter"],
-                $accessor->getClassName(),
-                $property->name
-              )
-            );
+            throw new MethodException($propertyConfiguration["getter"], $accessor->getClassName(), $property->name);
           }
 
-          $hasFound = true;
+          $valueHasBeenSet = true;
           $value = call_user_func([$data, $getter]);
         }
       }
 
-      if ($hasFound === false) {
+      if ($valueHasBeenSet === false) {
         try {
           $value = $accessor->get($property, $data);
         } catch (PrivatePropertyException $e) {
+          // If we don't find any accessor we consider the user doesn't want it to be normalized
           continue;
         }
       }
 
       if (is_object($value)) {
-        $context->getNavigator()->down($property->name);
-        $value = $this->normalize($value, $context);
-        $context->getNavigator()->up();
+        if ($context)
+          $context->getNavigator()->down($property->name);
+
+        $value = $this->normalizeValue($value, $context);
+
+        if ($context)
+          $context->getNavigator()->up();
       } else if (is_array($value)) {
         // We don't handle associative arrays so we assume this is a genuine array
         $value = array_map(function($notNormalizedValue) use ($property, $context) {
-          $context->getNavigator()->down($property->name);
-          $normalizedValue = $this->normalize($notNormalizedValue, $context);
-          $context->getNavigator()->up();
+          if ($context)
+            $context->getNavigator()->down($property->name);
+
+          $normalizedValue = $this->normalizeValue($notNormalizedValue, $context);
+
+          if ($context)
+            $context->getNavigator()->up();
+
           return $normalizedValue;
         }, $value);
       }
@@ -104,6 +137,7 @@ class ObjectNormalizer implements NormalizerInterface {
   }
 
   /**
+   * TODO : do nested denormalization
    * @param array $data
    * @param $object
    * @param Context|null $context

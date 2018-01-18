@@ -11,7 +11,9 @@ namespace Rewieer\Tests\Serializer\Normalizer;
 use Rewieer\Serializer\Context;
 use Rewieer\Serializer\ClassMetadata;
 use Rewieer\Serializer\ClassMetadataCollection;
+use Rewieer\Serializer\Normalizer\DatetimeNormalizer;
 use Rewieer\Serializer\Normalizer\ObjectNormalizer;
+use Rewieer\Serializer\Serializer;
 
 class Dummy {
   private $foo;
@@ -84,12 +86,18 @@ class TestPerson {
 }
 class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   /**
+   * @var Serializer
+   */
+  private $serializer;
+
+  /**
    * @var ObjectNormalizer
    */
   public $normalizer;
 
   public function setUp() {
-    $this->normalizer = new ObjectNormalizer();
+    $this->serializer = new Serializer();
+    $this->normalizer = $this->serializer->getNormalizers()["object"];
   }
 
   public function testNormalizing(){
@@ -112,6 +120,15 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $output = $this->normalizer->normalize($obj, $context);
     $this->assertEquals(["foo" => "a"], $output);
   }
+
+  public function testNormalizingWithNestedNormalizer() {
+    $this->serializer->setNormalizer(\DateTime::class, new DatetimeNormalizer());
+
+    $obj = new Dummy("a", new \Datetime("29-11-1995"));
+    $output = $this->normalizer->normalize($obj);
+    $this->assertEquals(["foo" => "a", "bar" => "1995-11-29T00:00:00+01:00", "isOk" => true], $output);
+  }
+
 
   public function testDenormalizing(){
     $data = ["foo" => "a", "bar" => "b"];
@@ -280,6 +297,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       ]
     ], $out);
   }
+
   public function testNormalizingNestedArrayWithViews() {
     $metadata = new ClassMetadata();
     $context = new Context();
@@ -363,6 +381,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
 
     $this->assertEquals("Method customGetBarX for property Rewieer\Tests\Serializer\Normalizer\Dummy:bar doesn't exist or is not public", $message);
   }
+
   public function testNormalizingWithGetterWhenGetterIsNotPublic(){
     $obj = new Dummy("a", "b");
     $metadata = new ClassMetadata();

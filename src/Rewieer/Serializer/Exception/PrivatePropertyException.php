@@ -8,9 +8,12 @@
 
 namespace Rewieer\Serializer\Exception;
 
-
 use Throwable;
 
+/**
+ * Class PrivatePropertyException
+ * @package Rewieer\Serializer\Exception
+ */
 class PrivatePropertyException extends \Exception {
   public function __construct(string $property, string $class, Throwable $previous = null) {
     parent::__construct(

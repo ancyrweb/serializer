@@ -43,7 +43,7 @@ class Serializer {
 
   public function __construct(ClassMetadataCollection $collection = null) {
     $this->setSerializer("json", new JsonSerializer());
-    $this->setNormalizer("object", new ObjectNormalizer());
+    $this->setNormalizer("object", new ObjectNormalizer($this));
 
     if ($collection === null) {
       $collection = new ClassMetadataCollection();
@@ -71,14 +71,6 @@ class Serializer {
   }
 
   /**
-   * Adds a subscriber
-   * @param EventSubscriberInterface $subscriber
-   */
-  public function addSubscriber(EventSubscriberInterface $subscriber) {
-    $this->dispatcher->addSubscriber($subscriber);
-  }
-
-  /**
    * Serialize the data
    * @param $data
    * @param string $format
@@ -93,7 +85,7 @@ class Serializer {
     $this->dispatcher->dispatch(SerializerEvents::PRE_NORMALIZE, [$preNormalizeEvent]);
 
     // Normalization
-    $normalized = $this->normalizers[gettype($data)]->normalize($data, $context);
+    $normalized = $this->getNormalizer($data)->normalize($data, $context);
 
     // PreSerialize
     $preSerializeEvent = new PreSerializeEvent($context, $normalized);
@@ -122,13 +114,21 @@ class Serializer {
     $deserialized = $postDeserializeEvent->getData();
 
     // Denormalizing
-    $entity = $this->normalizers[gettype($object)]->denormalize($deserialized, $object, $context);
+    $entity = $this->getNormalizer($object)->denormalize($deserialized, $object, $context);
 
     // PostDeserialize event
     $postDenormalizeEvent = new PostDenormalizeEvent($context, $entity);
     $this->dispatcher->dispatch(SerializerEvents::POST_DENORMALIZE, [$postDenormalizeEvent]);
 
     return $entity;
+  }
+
+  /**
+   * Adds a subscriber
+   * @param EventSubscriberInterface $subscriber
+   */
+  public function addSubscriber(EventSubscriberInterface $subscriber) {
+    $this->dispatcher->addSubscriber($subscriber);
   }
 
   /**
@@ -161,6 +161,14 @@ class Serializer {
    */
   public function getSerializers(): array {
     return $this->serializers;
+  }
+
+  public function getNormalizer($object) : NormalizerInterface {
+    if (array_key_exists(get_class($object), $this->normalizers)) {
+      return $this->normalizers[get_class($object)];
+    }
+
+    return $this->normalizers[gettype($object)];
   }
 
   /**
