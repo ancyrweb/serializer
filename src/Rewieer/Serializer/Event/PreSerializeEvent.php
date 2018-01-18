@@ -15,11 +15,13 @@ use Rewieer\Serializer\Context;
  * @package Rewieer\Serializer\Event
  */
 class PreSerializeEvent {
+  private $entity;
   private $normalized;
   private $context;
 
-  public function __construct(Context $context, array &$normalized) {
+  public function __construct(Context $context, $entity, array &$normalized) {
     $this->context = $context;
+    $this->entity = $entity;
     $this->normalized = $normalized;
   }
 
@@ -37,5 +39,12 @@ class PreSerializeEvent {
 
   public function getData() {
     return $this->normalized;
+  }
+
+  /**
+   * @return mixed
+   */
+  public function getEntity() {
+    return $this->entity;
   }
 }

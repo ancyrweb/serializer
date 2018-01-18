@@ -88,7 +88,7 @@ class Serializer {
     $normalized = $this->getNormalizer($data)->normalize($data, $context);
 
     // PreSerialize
-    $preSerializeEvent = new PreSerializeEvent($context, $normalized);
+    $preSerializeEvent = new PreSerializeEvent($context, $data, $normalized);
     $this->dispatcher->dispatch(SerializerEvents::PRE_SERIALIZE, [$preSerializeEvent]);
     $normalized = $preSerializeEvent->getData();
 
@@ -109,7 +109,7 @@ class Serializer {
     $deserialized = $this->serializers[$format]->deserialize($data);
 
     // PostDeserialize event
-    $postDeserializeEvent = new PostDeserializeEvent($context, $deserialized);
+    $postDeserializeEvent = new PostDeserializeEvent($context, $object, $deserialized);
     $this->dispatcher->dispatch(SerializerEvents::POST_DESERIALIZE, [$postDeserializeEvent]);
     $deserialized = $postDeserializeEvent->getData();
 
