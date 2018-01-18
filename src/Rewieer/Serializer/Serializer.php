@@ -78,14 +78,14 @@ class Serializer {
   public function normalize($object, Context $context = null) {
     // PreNormalize event
     $preNormalizeEvent = new PreNormalizeEvent($context, $object);
-    $this->dispatcher->dispatch(SerializerEvents::PRE_NORMALIZE, [$preNormalizeEvent]);
+    $this->dispatcher->dispatch(SerializerEvents::PRE_NORMALIZE, [$preNormalizeEvent, $context]);
 
     // Normalization
     $normalized = $this->getNormalizer($object)->normalize($object, $context);
 
     // PostNormalize
     $postNormalizeEvent = new PostNormalizeEvent($context, $object, $normalized);
-    $this->dispatcher->dispatch(SerializerEvents::POST_NORMALIZE, [$postNormalizeEvent]);
+    $this->dispatcher->dispatch(SerializerEvents::POST_NORMALIZE, [$postNormalizeEvent, $context]);
     return $postNormalizeEvent->getData();
   }
 
@@ -98,7 +98,7 @@ class Serializer {
   public function denormalize($value, $object, $context) {
     // PreNormalize event
     $preNormalize = new PreDenormalizeEvent($context, $object, $value);
-    $this->dispatcher->dispatch(SerializerEvents::PRE_DENORMALIZE, [$preNormalize]);
+    $this->dispatcher->dispatch(SerializerEvents::PRE_DENORMALIZE, [$preNormalize, $context]);
     $value = $preNormalize->getData();
 
     // Denormalizing
@@ -106,7 +106,7 @@ class Serializer {
 
     // PostDeserialize event
     $postDenormalizeEvent = new PostDenormalizeEvent($context, $entity);
-    $this->dispatcher->dispatch(SerializerEvents::POST_DENORMALIZE, [$postDenormalizeEvent]);
+    $this->dispatcher->dispatch(SerializerEvents::POST_DENORMALIZE, [$postDenormalizeEvent, $context]);
     return $entity;
   }
 
