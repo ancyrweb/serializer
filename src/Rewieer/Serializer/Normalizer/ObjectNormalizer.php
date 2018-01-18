@@ -37,7 +37,12 @@ class ObjectNormalizer implements NormalizerInterface {
    * @throws \Exception
    */
   private function normalizeValue($value, Context $context = null) {
-    return $this->serializer->normalize($value, $context);
+    $normalizer = $this->serializer->getNormalizer($value);
+    if ($normalizer) {
+      return $normalizer->normalize($value, $context);
+    }
+
+    return $this->normalize($value, $context);
   }
 
   /**
@@ -95,7 +100,7 @@ class ObjectNormalizer implements NormalizerInterface {
 
       if ($valueHasBeenSet === false) {
         try {
-          $value = $accessor->get($property, $data);
+          $value = $accessor->get($property->name, $data);
         } catch (PrivatePropertyException $e) {
           // If we don't find any accessor we consider the user doesn't want it to be normalized
           continue;
@@ -171,7 +176,7 @@ class ObjectNormalizer implements NormalizerInterface {
         }
       }
 
-      $accessor->set($property, $object, $value);
+      $accessor->set($property->name, $object, $value);
     }
 
     return $object;

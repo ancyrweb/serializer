@@ -47,59 +47,94 @@ class PropertyAccessor {
   }
 
   /**
-   * Return the value for this property
-   * @param \ReflectionProperty $property
+   * @param \ReflectionClass $class
+   * @param string $property
    * @param $object
    * @return mixed
    * @throws PrivatePropertyException
    */
-  public function get(\ReflectionProperty $property, $object) {
-    if ($property->isPublic()) {
-      return $property->getValue($object);
+  public static function recursiveGet(\ReflectionClass $class, string $property, $object) {
+    if ($class->hasProperty($property)) {
+      $property = $class->getProperty($property);
+      if ($property->isPublic()) {
+        return $property->getValue($object);
+      }
+
+      if ($class->hasMethod($property->name)) {
+        return call_user_func([$object, $property->name]);
+      }
+
+      $camelCase = "get" .ucfirst($property->name);
+      if ($class->hasMethod($camelCase)) {
+        return call_user_func([$object, $camelCase]);
+      }
+
+      $snakeCase = "get_" .$property->name;
+      if ($class->hasMethod($snakeCase)) {
+        return call_user_func([$object, $snakeCase]);
+      }
     }
 
-    if ($this->refClass->hasMethod($property->name)) {
-      return call_user_func([$object, $property->name]);
+    if ($class->getParentClass()) {
+      return self::recursiveGet($class->getParentClass(), $property, $object);
     }
 
-    $camelCase = "get" .ucfirst($property->name);
-    if ($this->refClass->hasMethod($camelCase)) {
-      return call_user_func([$object, $camelCase]);
-    }
-
-    $snakeCase = "get_" .$property->name;
-    if ($this->refClass->hasMethod($snakeCase)) {
-      return call_user_func([$object, $snakeCase]);
-    }
-
-    throw new PrivatePropertyException($property->name, $this->refClass->name);
+    throw new PrivatePropertyException($property->name, $class->name);
+  }
+  /**
+   * Return the value for this property
+   * @param string $property
+   * @param $object
+   * @return mixed
+   * @throws PrivatePropertyException
+   */
+  public function get(string $property, $object) {
+    return self::recursiveGet($this->refClass, $property, $object);
   }
 
   /**
-   * Set the value for this property
-   * @param \ReflectionProperty $property
+   * @param \ReflectionClass $class
+   * @param string $property
    * @param $object
    * @param $value
    * @throws PrivatePropertyException
    */
-  public function set(\ReflectionProperty $property, $object, $value) {
-    if ($property->isPublic()) {
-      $property->setValue($object, $value);
-      return;
+  public static function recursiveSet(\ReflectionClass $class, string $property, $object, $value) {
+    if ($class->hasProperty($property)) {
+      $property = $class->getProperty($property);
+      if ($property->isPublic()) {
+        $property->setValue($object, $value);
+        return;
+      }
+
+      $camelCase = "set" .ucfirst($property->name);
+      if ($class->hasMethod($camelCase)) {
+        call_user_func_array([$object, $camelCase], [$value]);
+        return;
+      }
+
+      $snakeCase = "set_" .$property->name;
+      if ($class->hasMethod($snakeCase)) {
+        call_user_func([$object, $snakeCase], [$value]);
+        return;
+      }
     }
 
-    $camelCase = "set" .ucfirst($property->name);
-    if ($this->refClass->hasMethod($camelCase)) {
-      call_user_func_array([$object, $camelCase], [$value]);
-      return;
+    if ($class->getParentClass()) {
+      return self::recursiveSet($class->getParentClass(), $property, $object, $value);
     }
 
-    $snakeCase = "set_" .$property->name;
-    if ($this->refClass->hasMethod($snakeCase)) {
-      call_user_func([$object, $snakeCase], [$value]);
-      return;
-    }
+    throw new PrivatePropertyException($property->name, $class->name);
+  }
 
-    throw new PrivatePropertyException($property->name, $this->refClass->name);
+  /**
+   * Set the value for this property
+   * @param string $property
+   * @param $object
+   * @param $value
+   * @throws PrivatePropertyException
+   */
+  public function set(string $property, $object, $value) {
+    return self::recursiveSet($this->refClass, $property, $object, $value);
   }
 }
