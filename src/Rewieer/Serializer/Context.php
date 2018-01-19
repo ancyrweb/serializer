@@ -62,7 +62,7 @@ class Context {
    * Allows the user to render custom fields
    * @param array $data
    */
-  public function renderFields(array $data) {
+  public function schema(array $data) {
     $this->view = $data;
   }
 

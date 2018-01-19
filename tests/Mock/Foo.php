@@ -30,4 +30,9 @@ class Foo {
     $this->var = $var;
     return $this;
   }
+
+  private function setVarPv($var) {
+    $this->var = $var;
+    return $this;
+  }
 }

@@ -11,80 +11,19 @@ namespace Rewieer\Tests\Serializer\Normalizer;
 use Rewieer\Serializer\Context;
 use Rewieer\Serializer\ClassMetadata;
 use Rewieer\Serializer\ClassMetadataCollection;
+use Rewieer\Serializer\Event\PostNormalizeEvent;
+use Rewieer\Serializer\Event\PreNormalizeEvent;
+use Rewieer\Serializer\Event\SerializerEvents;
+use Rewieer\Serializer\Exception\MethodException;
+use Rewieer\Serializer\Exception\PrivatePropertyException;
 use Rewieer\Serializer\Normalizer\DatetimeNormalizer;
 use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 use Rewieer\Serializer\Serializer;
+use Rewieer\Tests\Mock\Foo;
 use Rewieer\Tests\Mock\FooProxy;
-
-class Dummy {
-  private $foo;
-  private $bar;
-  private $isOk;
-  private $customGetBarCallCount = 0;
-
-  public function __construct($foo = null, $bar = null, $isOk = true) {
-    $this->foo = $foo;
-    $this->bar = $bar;
-    $this->isOk = $isOk;
-  }
-
-  public function getFoo() {
-    return $this->foo;
-  }
-
-  public function setFoo($foo): void {
-    $this->foo = $foo;
-  }
-
-  public function getBar() {
-    return $this->bar;
-  }
-
-  public function setBar($bar): void {
-    $this->bar = $bar;
-  }
-
-  public function customGetBar() {
-    $this->customGetBarCallCount++;
-    return $this->bar;
-  }
-
-  public function customGetBarCallCountX() {
-    return $this->customGetBarCallCount;
-  }
-
-  private function customGetBarPv() {
-    return $this->customGetBarCallCount;
-  }
-
-  /**
-   * @return mixed
-   */
-  public function isOk() {
-    return $this->isOk;
-  }
-
-  /**
-   * @param mixed $isOk
-   * @return Dummy
-   */
-  public function setIsOk($isOk) {
-    $this->isOk = $isOk;
-    return $this;
-  }
-}
-
-class TestPerson {
-  public $name;
-  public $job;
-  public $friend;
-
-  public function __construct($name, $job, $friend = null) {
-    $this->name = $name;
-    $this->job = $job;
-    $this->friend = $friend;
-  }
-}
+use Rewieer\Tests\Mock\Person;
+use Rewieer\Tests\Mock\Dummy;
+use Rewieer\Tests\Mock\SubArgsCollector;
 
 class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   /**
@@ -117,7 +56,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   public function testNormalizingWithViewButNoMetaData(){
     $obj = new Dummy("a", "b");
     $context = new Context();
-    $context->renderFields(["foo"]);
+    $context->schema(["foo"]);
 
     $output = $this->normalizer->normalize($obj, $context);
     $this->assertEquals(["foo" => "a"], $output);
@@ -134,91 +73,10 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   public function testNormalizingProxy(){
     $obj = new FooProxy(10);
     $context = new Context();
-    $context->renderFields(["var"]);
+    $context->schema(["var"]);
 
     $output = $this->normalizer->normalize($obj, $context);
     $this->assertEquals(["var" => 10], $output);
-  }
-
-  public function testDenormalizing(){
-    $data = ["foo" => "a", "bar" => "b"];
-    $out = $this->normalizer->denormalize($data, new Dummy());
-
-    $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->getFoo());
-    $this->assertEquals("b", $out->getBar());
-  }
-
-  public function testDenormalizingNested() {
-    $metadata = new ClassMetadata();
-    $metadata->configureAttribute("bar", [
-      "class" => Dummy::class,
-    ]);
-
-    $context = new Context();
-    $context->setMetadataCollection(new ClassMetadataCollection());
-    $context
-      ->getMetadataCollection()
-      ->add(Dummy::class, $metadata);
-
-    $data = ["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]];
-    $out = $this->normalizer->denormalize($data, new Dummy(), $context);
-
-    $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->getFoo());
-    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
-  }
-
-  public function testDenormalizingWithALoader() {
-    $metadata = new ClassMetadata();
-    $context = new Context();
-    $dummy = new Dummy();
-
-    $metadata->configureAttribute("bar", [
-      "denormalizer" => function ($value, $object, Context $inContext = null) use ($context, $dummy) {
-        $this->assertEquals(["foo" => "b", "bar" => "c"], $value);
-        $this->assertEquals($object, $dummy);
-        $this->assertEquals($context, $inContext);
-
-        return new Dummy($value["foo"], $value["bar"]);
-      }
-    ]);
-
-    $context->setMetadataCollection(new ClassMetadataCollection());
-    $context->getMetadataCollection()->add(Dummy::class, $metadata);
-
-    $data = ["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]];
-    $out = $this->normalizer->denormalize($data, $dummy, $context);
-
-    $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->getFoo());
-    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
-  }
-
-  public function testDenormalizingWithTypes() {
-    $metadata = new ClassMetadata();
-    $context = new Context();
-    $dummy = new Dummy();
-
-    $metadata
-      ->configureAttribute("foo", [
-        "type" => "int",
-      ])
-      ->configureAttribute("bar", [
-        "type" => "float",
-      ]);
-
-    $context->setMetadataCollection(new ClassMetadataCollection());
-    $context->getMetadataCollection()->add(Dummy::class, $metadata);
-
-    $data = ["foo" => "1", "bar" => "2.3"];
-    $out = $this->normalizer->denormalize($data, $dummy, $context);
-
-    $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals(1, $out->getFoo());
-    $this->assertTrue(is_int($out->getFoo()));
-    $this->assertEquals(2.3, $out->getBar());
-    $this->assertTrue(is_float($out->getBar()));
   }
 
   public function testNormalizingWithViews() {
@@ -252,7 +110,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     $metadataCollection->add(Dummy::class, $metadata);
     $context
       ->setMetadataCollection($metadataCollection)
-      ->renderFields([
+      ->schema([
         "foo",
       ]);
 
@@ -261,17 +119,17 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
   }
 
   public function testNormalizingNestedWithViews() {
-    $person = new TestPerson(
+    $johnDoe = new Person(
       "John Doe",
       "Developer",
-      new TestPerson(
+      ($janeDoe = new Person(
         "Jane Doe",
         "Manager",
-        new TestPerson(
+        ($marshall =  new Person(
           "Marshall",
           "President"
-        )
-      )
+        ))
+      ))
     );
 
     $metadata = new ClassMetadata();
@@ -286,13 +144,14 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       ]);
 
     $metadataCollection = new ClassMetadataCollection();
-    $metadataCollection->add(TestPerson::class, $metadata);
+    $metadataCollection->add(Person::class, $metadata);
 
     $context = new Context();
     $context->setMetadataCollection($metadataCollection);
     $context->useView("view1");
 
-    $out = $this->normalizer->normalize($person, $context);
+    $this->serializer->addSubscriber(($argsCollector = new SubArgsCollector()));
+    $out = $this->normalizer->normalize($johnDoe, $context);
 
     $this->assertEquals([
       "name" => "John Doe",
@@ -306,19 +165,45 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
         ]
       ]
     ], $out);
+
+    // Ensuring events are called
+    // Note : the events for the initial object are not triggered by the normalizer itself but by serializer
+    $this->assertEquals(4, count($argsCollector->calls));
+    $this->assertInstanceOf(PreNormalizeEvent::class, $argsCollector->calls[0]);
+    $this->assertEquals($janeDoe, $argsCollector->calls[0]->getEntity());
+
+    $this->assertInstanceOf(PreNormalizeEvent::class, $argsCollector->calls[1]);
+    $this->assertEquals($marshall, $argsCollector->calls[1]->getEntity());
+
+    $this->assertInstanceOf(PostNormalizeEvent::class, $argsCollector->calls[2]);
+    $this->assertEquals([
+      "name" => "Marshall",
+      "job" => "President",
+      "friend" => null,
+    ], $argsCollector->calls[2]->getData());
+
+    $this->assertInstanceOf(PostNormalizeEvent::class, $argsCollector->calls[3]);
+    $this->assertEquals([
+      "name" => "Jane Doe",
+      "friend" => [
+        "name" => "Marshall",
+        "job" => "President",
+        "friend" => null,
+      ]
+    ], $argsCollector->calls[3]->getData());
   }
 
   public function testNormalizingNestedArrayWithViews() {
     $metadata = new ClassMetadata();
     $context = new Context();
-    $person = new TestPerson(
+    $person = new Person(
       "John Doe",
       "Developer",
       [
-        new TestPerson("Jane Doe", "Manager", [
-          new TestPerson("Anne Mary", "Freelance"),
+        new Person("Jane Doe", "Manager", [
+          new Person("Anne Mary", "Freelance"),
         ]),
-        new TestPerson("Marshall","President")
+        new Person("Marshall","President")
       ]
     );
 
@@ -332,7 +217,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       ]);
 
     $metadataCollection = new ClassMetadataCollection();
-    $metadataCollection->add(TestPerson::class, $metadata);
+    $metadataCollection->add(Person::class, $metadata);
     $context
       ->setMetadataCollection($metadataCollection)
       ->useView("view1");
@@ -389,7 +274,7 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       $message = $e->getMessage();
     }
 
-    $this->assertEquals("Method customGetBarX for property Rewieer\Tests\Serializer\Normalizer\Dummy:bar doesn't exist or is not public", $message);
+    $this->assertEquals("Method customGetBarX for property Rewieer\Tests\Mock\Dummy:bar doesn't exist or is not public", $message);
   }
 
   public function testNormalizingWithGetterWhenGetterIsNotPublic(){
@@ -411,7 +296,232 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
       $message = $e->getMessage();
     }
 
-    $this->assertEquals("Method customGetBarPv for property Rewieer\Tests\Serializer\Normalizer\Dummy:bar doesn't exist or is not public", $message);
+    $this->assertEquals("Method customGetBarPv for property Rewieer\Tests\Mock\Dummy:bar doesn't exist or is not public", $message);
+  }
+
+  // Denormalization
+
+  public function testDenormalizing(){
+    $data = ["foo" => "a", "bar" => "b"];
+    $out = $this->normalizer->denormalize($data, new Dummy());
+
+    $this->assertTrue($out instanceof Dummy);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals("b", $out->getBar());
+  }
+
+  public function testDenormalizingNested() {
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("bar", [
+      "class" => Dummy::class,
+    ]);
+
+    $context = new Context();
+    $context->setMetadataCollection(new ClassMetadataCollection());
+    $context
+      ->getMetadataCollection()
+      ->add(Dummy::class, $metadata);
+
+    $data = ["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]];
+    $out = $this->normalizer->denormalize($data, new Dummy(), $context);
+
+    $this->assertTrue($out instanceof Dummy);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
+  }
+
+  public function testDenormalizingWithALoader() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $dummy = new Dummy();
+
+    $metadata->configureAttribute("bar", [
+      "denormalizer" => function ($value, $object, Context $inContext = null) use ($context, $dummy) {
+        $this->assertEquals(["foo" => "b", "bar" => "c"], $value);
+        $this->assertEquals($object, $dummy);
+        $this->assertEquals($context, $inContext);
+
+        return new Dummy($value["foo"], $value["bar"]);
+      }
+    ]);
+
+    $context->setMetadataCollection(new ClassMetadataCollection());
+    $context->getMetadataCollection()->add(Dummy::class, $metadata);
+
+    $data = ["foo" => "a", "bar" => ["foo" => "b", "bar" => "c"]];
+    $out = $this->normalizer->denormalize($data, $dummy, $context);
+
+    $this->assertTrue($out instanceof Dummy);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals(new Dummy("b", "c"), $out->getBar());
+  }
+
+  public function testDenormalizingWithIntAndFloat() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $dummy = new Dummy();
+
+    $metadata
+      ->configureAttribute("foo", [
+        "type" => "int",
+      ])
+      ->configureAttribute("bar", [
+        "type" => "float",
+      ]);
+
+    $context->setMetadataCollection(new ClassMetadataCollection());
+    $context->getMetadataCollection()->add(Dummy::class, $metadata);
+
+    $data = ["foo" => "1", "bar" => "2.3"];
+    $out = $this->normalizer->denormalize($data, $dummy, $context);
+
+    $this->assertTrue($out instanceof Dummy);
+    $this->assertEquals(1, $out->getFoo());
+    $this->assertTrue(is_int($out->getFoo()));
+    $this->assertEquals(2.3, $out->getBar());
+    $this->assertTrue(is_float($out->getBar()));
+  }
+
+  public function testDenormalizingWithIntAndBool() {
+    $metadata = new ClassMetadata();
+    $context = new Context();
+    $dummy = new Dummy();
+
+    $metadata
+      ->configureAttribute("foo", [
+        "type" => "bool",
+      ])
+      ->configureAttribute("bar", [
+        "type" => "bool",
+      ]);
+
+    $context->setMetadataCollection(new ClassMetadataCollection());
+    $context->getMetadataCollection()->add(Dummy::class, $metadata);
+
+    $data = ["foo" => 0, "bar" => "true"];
+    $out = $this->normalizer->denormalize($data, $dummy, $context);
+
+    $this->assertTrue($out instanceof Dummy);
+    $this->assertEquals(false, $out->getFoo());
+    $this->assertTrue(is_bool($out->getFoo()));
+    $this->assertEquals(true, $out->getBar());
+    $this->assertTrue(is_bool($out->getBar()));
+  }
+
+  public function testDenormalizingProxy() {
+    $context = new Context();
+    $context->schema(["var"]);
+
+    $foo = new FooProxy(0);
+
+    $data = ["var" => "this is new var"];
+    $out = $this->normalizer->denormalize($data, $foo, $context);
+
+    $this->assertTrue($out instanceof FooProxy);
+    $this->assertEquals("this is new var", $out->getVar());
+  }
+
+  public function testDenormalizingWithUnexistingProperty() {
+    $context = new Context();
+    $context->schema(["test"]);
+
+    $foo = new Foo(1);
+
+    $data = ["var" => "this is new var", "test" => "haha"];
+    $message = null;
+
+    try {
+      $this->normalizer->denormalize($data, $foo, $context);
+    } catch (PrivatePropertyException $e) {
+      $message = $e->getMessage();
+    }
+
+    $this->assertEquals(
+      "Cannot access property. Please define accessor such as getTest/setTest or get_test/set_test for class Rewieer\Tests\Mock\Foo",
+      $message
+    );
+
+    $this->assertEquals(1, $foo->getVar());
+  }
+
+  public function testDenormalizingWithCustomSetter() {
+    $context = new Context();
+    $context->schema(["test"]);
+
+    $collection = new ClassMetadataCollection();
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("test", [
+      "setter" => "setVar"
+    ]);
+
+    $collection->add(Foo::class, $metadata);
+    $context->setMetadataCollection($collection);
+
+    $foo = new Foo(1);
+
+    $data = ["test" => "haha"];
+    $out = $this->normalizer->denormalize($data, $foo, $context);
+
+    $this->assertTrue($out instanceof Foo);
+    $this->assertEquals("haha", $out->getVar());
+  }
+
+  public function testDenormalizingWithUnexistingCustomSetter() {
+    $context = new Context();
+    $context->schema(["test"]);
+
+    $collection = new ClassMetadataCollection();
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("test", [
+      "setter" => "setVarX"
+    ]);
+
+    $collection->add(Foo::class, $metadata);
+    $context->setMetadataCollection($collection);
+
+    $foo = new Foo(1);
+
+    $data = ["test" => "haha"];
+    $message = null;
+    try {
+      $this->normalizer->denormalize($data, $foo, $context);
+    } catch (MethodException $e) {
+      $message = $e->getMessage();
+    }
+
+    $this->assertEquals(
+      "Method setVarX for property Rewieer\Tests\Mock\Foo:test doesn't exist or is not public",
+      $message
+    );
+  }
+
+  public function testDenormalizingWithPrivateCustomSetter() {
+    $context = new Context();
+    $context->schema(["test"]);
+
+    $collection = new ClassMetadataCollection();
+    $metadata = new ClassMetadata();
+    $metadata->configureAttribute("test", [
+      "setter" => "setVarPv"
+    ]);
+
+    $collection->add(Foo::class, $metadata);
+    $context->setMetadataCollection($collection);
+
+    $foo = new Foo(1);
+
+    $data = ["test" => "haha"];
+    $message = null;
+    try {
+      $this->normalizer->denormalize($data, $foo, $context);
+    } catch (MethodException $e) {
+      $message = $e->getMessage();
+    }
+
+    $this->assertEquals(
+      "Method setVarPv for property Rewieer\Tests\Mock\Foo:test doesn't exist or is not public",
+      $message
+    );
   }
 
 }

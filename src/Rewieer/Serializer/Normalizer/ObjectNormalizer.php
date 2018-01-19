@@ -8,6 +8,8 @@
 
 namespace Rewieer\Serializer\Normalizer;
 
+use phpDocumentor\Reflection\DocBlock\Tags\Property;
+use Rewieer\Serializer\ClassMetadata;
 use Rewieer\Serializer\Context;
 use Rewieer\Serializer\Exception\MethodException;
 use Rewieer\Serializer\Exception\PrivatePropertyException;
@@ -37,21 +39,7 @@ class ObjectNormalizer implements NormalizerInterface {
     return $this->serializer->normalize($value, $context);
   }
 
-  /**
-   * @param $data
-   * @param Context|null $context
-   * @return array
-   * @throws MethodException
-   */
-  public function normalize($data, Context $context = null) {
-    $metadata = null;
-    $out = [];
-    $accessor = new PropertyAccessor($data);
-
-    if ($context && $context->getMetadataCollection()) {
-      $metadata = $context->getMetadataCollection()->getOrNull(get_class($data));
-    }
-
+  public function getProperties(PropertyAccessor $accessor, Context $context = null, ClassMetadata $metadata = null) {
     $properties = null;
 
     // By default we try to get data out of the view
@@ -81,6 +69,24 @@ class ObjectNormalizer implements NormalizerInterface {
       }, $accessor->getProperties());
     }
 
+    return $properties;
+  }
+  /**
+   * @param $data
+   * @param Context|null $context
+   * @return array
+   * @throws MethodException
+   */
+  public function normalize($data, Context $context = null) {
+    $metadata = null;
+    $out = [];
+    $accessor = new PropertyAccessor($data);
+
+    if ($context && $context->getMetadataCollection()) {
+      $metadata = $context->getMetadataCollection()->getOrNull(get_class($data));
+    }
+
+    $properties = $this->getProperties($accessor, $context, $metadata);
     foreach ($properties as $property) {
       $value = null;
       $valueHasBeenSet = false; // custom getter can return null, in which case we don't want to lookup for accessors
@@ -146,37 +152,59 @@ class ObjectNormalizer implements NormalizerInterface {
    */
   public function denormalize(array $data, $object, Context $context = null) {
     $accessor = new PropertyAccessor($object);
-    foreach ($accessor->getProperties() as $property) {
-      if (array_key_exists($property->getName(), $data) === false) {
+    $metadata = null;
+
+    if ($context && $context->getMetadataCollection()) {
+      $metadata = $context->getMetadataCollection()->getOrNull(get_class($object));
+    }
+
+    $properties = $this->getProperties($accessor, $context, $metadata);
+
+    foreach ($properties as $property) {
+      if (array_key_exists($property, $data) === false) {
         continue;
       }
 
-      $value = $data[$property->getName()];
-      if ($context) {
-        $metadata = $context->getMetadataCollection()->getOrNull(get_class($object));
-        if ($metadata) {
-          $propertyConfiguration = $metadata->getAttributeOrNull($property->getName());
-          if ($propertyConfiguration) {
-            if (array_key_exists("class", $propertyConfiguration) && is_array($value)) {
-              $item = new $propertyConfiguration["class"];
-              $value = $this->denormalize($value, $item, $context);
-            } else if (array_key_exists("denormalizer", $propertyConfiguration) && is_array($value)) {
-              $value = $propertyConfiguration["denormalizer"]($value, $object, $context);
-            } else if (array_key_exists("type", $propertyConfiguration)) {
-              switch ($propertyConfiguration["type"]) {
-                case "int":
-                  $value = intval($value);
-                  break;
-                case "float":
-                  $value = floatval($value);
-                  break;
-              }
+      $value = $data[$property];
+      $valueHasBeenSet = false;
+
+      if ($context && $metadata) {
+        $propertyConfiguration = $metadata->getAttributeOrNull($property);
+        if ($propertyConfiguration) {
+          if (array_key_exists("class", $propertyConfiguration) && is_array($value)) {
+            $item = new $propertyConfiguration["class"];
+            $value = $this->denormalize($value, $item, $context);
+          } else if (array_key_exists("denormalizer", $propertyConfiguration) && is_array($value)) {
+            $value = $propertyConfiguration["denormalizer"]($value, $object, $context);
+          } else if (array_key_exists("type", $propertyConfiguration)) {
+            switch ($propertyConfiguration["type"]) {
+              case "int":
+                $value = intval($value);
+                break;
+              case "float":
+                $value = floatval($value);
+                break;
+              case "bool":
+                $value = boolval($value);
+                break;
             }
+          }
+
+          if (array_key_exists("setter", $propertyConfiguration)) {
+            $setter = $propertyConfiguration["setter"];
+            if ($accessor->hasMethod($setter) === false || $accessor->isPublic($setter) === false) {
+              throw new MethodException($propertyConfiguration["setter"], $accessor->getClassName(), $property);
+            }
+
+            $valueHasBeenSet = true;
+            call_user_func_array([$object, $setter], [$value]);
           }
         }
       }
 
-      $accessor->set($property->name, $object, $value);
+      if ($valueHasBeenSet === false) {
+        $accessor->set($property, $object, $value);
+      }
     }
 
     return $object;

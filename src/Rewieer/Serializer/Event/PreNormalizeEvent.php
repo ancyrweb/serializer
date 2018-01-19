@@ -26,4 +26,11 @@ class PreNormalizeEvent {
   public function getEntity() {
     return $this->entity;
   }
+
+  /**
+   * @return Context
+   */
+  public function getContext(): Context {
+    return $this->context;
+  }
 }

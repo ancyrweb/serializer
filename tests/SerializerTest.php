@@ -8,6 +8,7 @@
 
 namespace Rewieer\Tests\Serializer;
 
+use Rewieer\Serializer\Context;
 use Rewieer\Serializer\Event\EventSubscriberInterface;
 use Rewieer\Serializer\Event\PostDenormalizeEvent;
 use Rewieer\Serializer\Event\PreDenormalizeEvent;
@@ -16,16 +17,8 @@ use Rewieer\Serializer\Event\PostNormalizeEvent;
 use Rewieer\Serializer\Event\SerializerEvents;
 use Rewieer\Serializer\Serializer;
 use Rewieer\Serializer\SerializerTools;
-
-class Dummy {
-  public $foo;
-  public $bar;
-
-  public function __construct($foo = null, $bar = null) {
-    $this->foo = $foo;
-    $this->bar = $bar;
-  }
-}
+use Rewieer\Tests\Mock\Dummy;
+use Rewieer\Tests\Mock\SubArgsCollector;
 
 class Sub1 implements EventSubscriberInterface {
   public function preSerialize(PostNormalizeEvent $event) {
@@ -33,7 +26,7 @@ class Sub1 implements EventSubscriberInterface {
   }
 
   public function preNormalize(PreNormalizeEvent $event) {
-    $event->getEntity()->bar = "newbar";
+    $event->getEntity()->setBar("newbar");
   }
 
   public function postDeserialize(PreDenormalizeEvent $event) {
@@ -41,7 +34,7 @@ class Sub1 implements EventSubscriberInterface {
   }
 
   public function postDenormalize(PostDenormalizeEvent $event) {
-    $event->getEntity()->bar = "Snow";
+    $event->getEntity()->setBar("Snow");
   }
 
   public static function getEvents(): array {
@@ -60,7 +53,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase {
     $serializer = new Serializer();
     $obj = new Dummy("a", "b");
     $output = $serializer->serialize($obj, "json");
-    $expected = '{"foo":"a","bar":"b"}';
+    $expected = '{"foo":"a","bar":"b","isOk":true}';
 
     $this->assertEquals($expected, $output);
   }
@@ -71,8 +64,8 @@ class SerializerTest extends \PHPUnit\Framework\TestCase {
     $out = $serializer->deserialize($data, "json", $obj);
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("a", $out->foo);
-    $this->assertEquals("b", $out->bar);
+    $this->assertEquals("a", $out->getFoo());
+    $this->assertEquals("b", $out->getBar());
   }
   public function testSerializeWithMetadata() {
     $serializer = new Serializer(
@@ -87,7 +80,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase {
 
     $obj = new Dummy("a", new Dummy("b", "c"));
     $output = $serializer->serialize($obj, "json");
-    $expected = '{"foo":"a","bar":{"foo":"b","bar":"c"}}';
+    $expected = '{"foo":"a","bar":{"foo":"b","bar":"c","isOk":true},"isOk":true}';
 
     $this->assertEquals($expected, $output);
   }
@@ -111,27 +104,55 @@ class SerializerTest extends \PHPUnit\Framework\TestCase {
   public function testSerializeWithSubscriber() {
     $serializer = new Serializer();
     $subscriber = new Sub1();
+    $argsCollector = new SubArgsCollector();
     $serializer->addSubscriber($subscriber);
+    $serializer->addSubscriber($argsCollector);
 
     $obj = new Dummy("a", "b");
-    $output = $serializer->serialize($obj, "json");
-    $expected = '{"foo":"a","bar":"newbar","qux":"c"}';
-
+    $context = new Context();
+    $output = $serializer->serialize($obj, "json", $context);
+    $expected = '{"foo":"a","bar":"newbar","isOk":true,"qux":"c"}';
     $this->assertEquals($expected, $output);
+
+    $this->assertInstanceOf(PreNormalizeEvent::class, $argsCollector->calls[0]);
+    $this->assertEquals($obj, $argsCollector->calls[0]->getEntity());
+    $this->assertEquals($context, $argsCollector->calls[0]->getContext());
+
+    $this->assertInstanceOf(PostNormalizeEvent::class, $argsCollector->calls[1]);
+    $this->assertEquals($obj, $argsCollector->calls[1]->getEntity());
+    $this->assertEquals($context, $argsCollector->calls[1]->getContext());
+    $this->assertEquals([
+      "foo" => "a",
+      "bar" => "newbar",
+      "isOk" => true,
+      "qux" => "c",
+    ], $argsCollector->calls[1]->getData());
   }
   public function testDeserializeWithSubscriber() {
     $serializer = new Serializer();
     $subscriber = new Sub1();
+    $argsCollector = new SubArgsCollector();
+    $serializer->addSubscriber($argsCollector);
     $serializer->addSubscriber($subscriber);
 
     $obj = new Dummy();
+    $context = new Context();
     $data = '{"foo":"a"}';
-    $out = $serializer->deserialize($data, "json", $obj);
+    $out = $serializer->deserialize($data, "json", $obj, $context);
 
     $this->assertTrue($out instanceof Dummy);
-    $this->assertEquals("Jon", $out->foo);
-    $this->assertEquals("Snow", $out->bar);
+    $this->assertEquals("Jon", $out->getFoo());
+    $this->assertEquals("Snow", $out->getBar());
+
+    $this->assertInstanceOf(PreDenormalizeEvent::class, $argsCollector->calls[0]);
+    $this->assertEquals($obj, $argsCollector->calls[0]->getEntity());
+    $this->assertEquals($context, $argsCollector->calls[0]->getContext());
+    $this->assertEquals([
+      "foo" => "Jon",
+    ], $argsCollector->calls[0]->getData());
+
+    $this->assertInstanceOf(PostDenormalizeEvent::class, $argsCollector->calls[1]);
+    $this->assertEquals($obj, $argsCollector->calls[1]->getEntity());
+    $this->assertEquals($context, $argsCollector->calls[1]->getContext());
   }
-
-
 }
