@@ -13,12 +13,12 @@ use Rewieer\Serializer\ClassMetadata;
 use Rewieer\Serializer\ClassMetadataCollection;
 use Rewieer\Serializer\Event\PostNormalizeEvent;
 use Rewieer\Serializer\Event\PreNormalizeEvent;
-use Rewieer\Serializer\Event\SerializerEvents;
 use Rewieer\Serializer\Exception\MethodException;
 use Rewieer\Serializer\Exception\PrivatePropertyException;
 use Rewieer\Serializer\Normalizer\DatetimeNormalizer;
 use Rewieer\Serializer\Normalizer\ObjectNormalizer;
 use Rewieer\Serializer\Serializer;
+use Rewieer\Tests\Mock\ArrayFoo;
 use Rewieer\Tests\Mock\Foo;
 use Rewieer\Tests\Mock\FooProxy;
 use Rewieer\Tests\Mock\Person;
@@ -297,6 +297,34 @@ class ObjectNormalizerTest extends \PHPUnit\Framework\TestCase {
     }
 
     $this->assertEquals("Method customGetBarPv for property Rewieer\Tests\Mock\Dummy:bar doesn't exist or is not public", $message);
+  }
+
+  public function testNormalizingWhenNestedArrayAccessibleItem(){
+    $obj = new Dummy(
+      "a",
+      new ArrayFoo([
+        new Dummy("a1", "b1"),
+        new Dummy("a2", "b2")
+      ])
+    );
+
+    $output = $this->normalizer->normalize($obj, new Context());
+    $this->assertEquals([
+      "foo" => "a",
+      "bar" => [
+        [
+          "foo" => "a1",
+          "bar" => "b1",
+          "isOk" => true,
+        ],
+        [
+          "foo" => "a2",
+          "bar" => "b2",
+          "isOk" => true,
+        ]
+      ],
+      "isOk" => true
+    ], $output);
   }
 
   // Denormalization

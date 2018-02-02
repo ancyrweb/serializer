@@ -39,6 +39,13 @@ class ObjectNormalizer implements NormalizerInterface {
     return $this->serializer->normalize($value, $context);
   }
 
+  /**
+   * Return the properties of the object
+   * @param PropertyAccessor $accessor
+   * @param Context|null $context
+   * @param ClassMetadata|null $metadata
+   * @return array|null
+   */
   public function getProperties(PropertyAccessor $accessor, Context $context = null, ClassMetadata $metadata = null) {
     $properties = null;
 
@@ -113,7 +120,22 @@ class ObjectNormalizer implements NormalizerInterface {
         }
       }
 
-      if (is_object($value)) {
+      if (is_array($value) || $value instanceof \Traversable) {
+        // We don't handle associative arrays so we assume this is a genuine array
+        $arrayValue = $value;
+        $value = [];
+
+        foreach ($arrayValue as $subItem) {
+          if ($context)
+            $context->getNavigator()->down($property);
+
+          $value[] = $this->normalizeValue($subItem, $context);
+
+          if ($context)
+            $context->getNavigator()->up();
+        }
+        unset($arrayValue);
+      } else if (is_object($value)) {
         if ($context)
           $context->getNavigator()->down($property);
 
@@ -121,19 +143,6 @@ class ObjectNormalizer implements NormalizerInterface {
 
         if ($context)
           $context->getNavigator()->up();
-      } else if (is_array($value)) {
-        // We don't handle associative arrays so we assume this is a genuine array
-        $value = array_map(function($notNormalizedValue) use ($property, $context) {
-          if ($context)
-            $context->getNavigator()->down($property);
-
-          $normalizedValue = $this->normalizeValue($notNormalizedValue, $context);
-
-          if ($context)
-            $context->getNavigator()->up();
-
-          return $normalizedValue;
-        }, $value);
       }
 
       $out[$property] = $value;
