@@ -81,12 +81,25 @@ class Serializer {
     $this->dispatcher->dispatch(SerializerEvents::PRE_NORMALIZE, [$preNormalizeEvent, $context]);
 
     // Normalization
-    $normalized = $this->getNormalizer($object)->normalize($object, $context);
+    $normalized = $this->doNormalize($object, $context);
 
     // PostNormalize
     $postNormalizeEvent = new PostNormalizeEvent($context, $object, $normalized);
     $this->dispatcher->dispatch(SerializerEvents::POST_NORMALIZE, [$postNormalizeEvent, $context]);
     return $postNormalizeEvent->getData();
+  }
+
+  private function doNormalize($object, Context $context = null) {
+    if (is_array($object) || $object instanceof \Traversable) {
+      $returnValue = [];
+      foreach($object as $value) {
+        $returnValue[] = $this->normalize($value, $context);
+      }
+
+      return $returnValue;
+    }
+
+    return $this->getNormalizer($object)->normalize($object, $context);
   }
 
   /**

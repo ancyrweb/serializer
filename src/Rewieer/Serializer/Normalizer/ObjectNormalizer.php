@@ -120,22 +120,7 @@ class ObjectNormalizer implements NormalizerInterface {
         }
       }
 
-      if (is_array($value) || $value instanceof \Traversable) {
-        // We don't handle associative arrays so we assume this is a genuine array
-        $arrayValue = $value;
-        $value = [];
-
-        foreach ($arrayValue as $subItem) {
-          if ($context)
-            $context->getNavigator()->down($property);
-
-          $value[] = $this->normalizeValue($subItem, $context);
-
-          if ($context)
-            $context->getNavigator()->up();
-        }
-        unset($arrayValue);
-      } else if (is_object($value)) {
+     if (!is_scalar($value) && $value !== null) {
         if ($context)
           $context->getNavigator()->down($property);
 
