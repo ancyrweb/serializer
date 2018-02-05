@@ -77,4 +77,11 @@ class ClassMetadata {
   public function rawProperties() {
     return $this->attributes;
   }
+
+  /**
+   * @return array
+   */
+  public function rawViews() {
+    return $this->views;
+  }
 }
