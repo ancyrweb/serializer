@@ -155,4 +155,10 @@ class SerializerTest extends \PHPUnit\Framework\TestCase {
     $this->assertEquals($obj, $argsCollector->calls[1]->getEntity());
     $this->assertEquals($context, $argsCollector->calls[1]->getContext());
   }
+  public function testSerializeWithAssociativeArray() {
+    $serializer = new Serializer();
+    $output = $serializer->serialize(["foo" => "a", "bar" => new Dummy("a", ["foo" => "bar"])], "json");
+    $this->assertEquals('{"foo":"a","bar":{"foo":"a","bar":{"foo":"bar"},"isOk":true}}', $output);
+  }
+
 }

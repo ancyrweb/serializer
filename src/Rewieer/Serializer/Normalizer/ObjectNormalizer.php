@@ -87,6 +87,7 @@ class ObjectNormalizer implements NormalizerInterface {
   public function normalize($data, Context $context = null) {
     $metadata = null;
     $out = [];
+
     $accessor = new PropertyAccessor($data);
 
     if ($context && $context->getMetadataCollection()) {

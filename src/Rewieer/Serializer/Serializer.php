@@ -89,11 +89,19 @@ class Serializer {
     return $postNormalizeEvent->getData();
   }
 
+  /**
+   * @param $object
+   * @param Context|null $context
+   * @return mixed|array
+   */
   private function doNormalize($object, Context $context = null) {
+    if (is_scalar($object))
+      return $object;
+
     if (is_array($object) || $object instanceof \Traversable) {
       $returnValue = [];
-      foreach($object as $value) {
-        $returnValue[] = $this->normalize($value, $context);
+      foreach ($object as $key => $value) {
+        $returnValue[$key] = $this->normalize($value, $context);
       }
 
       return $returnValue;
